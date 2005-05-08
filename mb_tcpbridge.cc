@@ -110,6 +110,7 @@ private:
 	};
 	uint16_t calccrc();
 	int checkcrc();
+	void setexception (uint8_t except);
 
 public:
         class Listen : public ::Network::Listen {
@@ -155,6 +156,13 @@ FConnect::threadstart() {
 void
 FConnect::threadend() {
 	delete this;
+}
+
+void
+FConnect::setexception (uint8_t except) {
+	packet.function |= 0x80;
+	packet.cmd[0] = except;
+	packetlen = 3;
 }
 
 uint16_t
@@ -230,8 +238,7 @@ FConnect::getpacket() {
 	to.tv_usec = 0; 
 	select(device + 1, &fds, NULL, NULL, &to);
 	if (!FD_ISSET(device, &fds)) {
-		printf("no slave response\n");
-		// XXX: TODO setuop correct exception
+		setexception(0x0b);
 		return;	// reaction timeout
 	}
 	// no range check needed because of overflow
@@ -248,9 +255,7 @@ FConnect::getpacket() {
 			// wait t3.5 to block other possible writes
 			usleep((useconds_t) (1000000/(115200/11*3.5)));
 			if (!checkcrc()) {
-				printf("received packet has wrong CRC\n");
-				// XXX: TODO setuop correct exception
-				packetlen = 0;
+				setexception(0x0b);
 			}
 			return;
 		}
@@ -260,6 +265,7 @@ FConnect::getpacket() {
 void
 FConnect::work() {
 	ssize_t res;
+	uint8_t sbuf[256+6];
 
 	for (;;) {
 		// TODO: timeout handling
@@ -270,21 +276,23 @@ FConnect::work() {
 		// TODO check header arguments;
 		packetlen = header[4] << 8 | header[5];
 		// TODO check packetlen;
-		res = file->read(&packet.data[2], packetlen);
+		res = file->read(&packet.data[0], packetlen);
 		if (res < packetlen) {
 			return;
 		}
-		packetlen -= 2;	// drop address and function bytes
+		//packetlen -= 2;	// drop address and function bytes
 		device_mtx.lock();
 		sendpacket();
-		getpacket();
+		getpacket();	// TODO: don't expect response from broadcast packets
+				// TODO: we are a bridge, so we should implement 0xff response
 		device_mtx.unlock();
-		packetlen += 2; // add address and function bytes
+		//packetlen += 2; // add address and function bytes
 		header[0] = 0;
 		header[4] = 0;
 		header[5] = packetlen;
-		file->write(&header, sizeof(header));
-		file->write(&packet.data[2], packetlen);
+		memcpy(&sbuf[0], header, sizeof(header));
+		memcpy(&sbuf[sizeof(header)], &packet.data[2], packetlen);
+		file->write(sbuf, sizeof(header) + packetlen);
 	}
 }
 
