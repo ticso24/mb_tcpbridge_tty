@@ -88,7 +88,7 @@ private:
 	union {
 		uint8_t data[258];
 		struct {
-			uint16_t refno;
+//			uint16_t refno;
 			uint8_t address;
 			uint8_t function;
 			uint8_t cmd[1];
@@ -200,14 +200,15 @@ FConnect::sendpacket() {
 	crc = calccrc();
 	packet.data[packetlen - 2] = crc & 0xff;
 	packet.data[packetlen - 1] = crc >> 8;
-	::writen(device, packet.data, packetlen);
 	tcflush(device, TCIFLUSH); // flush received data
+	::writen(device, packet.data, packetlen);
 	return;
 }
 
 void
 FConnect::getpacket() {
 	int res;
+	ssize_t tmp;
 	fd_set fds;
 	struct timeval to;
 
@@ -215,8 +216,8 @@ FConnect::getpacket() {
 	// wait for the first packet befor starting
 	FD_ZERO(&fds);
 	FD_SET(device, &fds);
-	to.tv_sec = 1;
-	to.tv_usec = 0; 
+	to.tv_sec = 0;
+	to.tv_usec = 100000; 
 	select(device + 1, &fds, NULL, NULL, &to);
 	if (!FD_ISSET(device, &fds)) {
 		setexception(0x0b);
@@ -227,17 +228,29 @@ FConnect::getpacket() {
 		FD_ZERO(&fds);
 		FD_SET(device, &fds);
 		to.tv_sec = 0;
-		to.tv_usec = (suseconds_t) (1000000/(115200/11*1.5));
+		//to.tv_usec = (suseconds_t) (1000000 / 115200 * 11 * 1.5);
+		// multitasking OS and USB serials have problems with low latency
+		to.tv_usec = 10000;
 		res = select(device + 1, &fds, NULL, NULL, &to);
-		if (FD_ISSET(device, &fds))
-			packetlen += ::read(device, &packet.data[packetlen],
+		if (FD_ISSET(device, &fds)) {
+			tmp = ::read(device, &packet.data[packetlen],
 			    256 - packetlen);	// TODO check for parity error
-		else {
+			if (tmp >= 0) {
+				packetlen += tmp;
+			} else {
+				// wait t3.5 to block other possible writes
+				usleep((useconds_t) (1000000 / 115200 * 11 * 3.5));
+				setexception(0x0b);
+				return;
+			}
+		} else {
 			// wait t3.5 to block other possible writes
-			usleep((useconds_t) (1000000/(115200/11*3.5)));
+			usleep((useconds_t) (1000000 / 115200 * 11 * 3.5));
 			if (!checkcrc()) {
 				setexception(0x0b);
+				return;
 			}
+			packetlen -= 2;
 			return;
 		}
 	}
@@ -272,13 +285,13 @@ FConnect::work() {
 		header[4] = 0;
 		header[5] = packetlen;
 		memcpy(&sbuf[0], header, sizeof(header));
-		memcpy(&sbuf[sizeof(header)], &packet.data[2], packetlen);
+		memcpy(&sbuf[sizeof(header)], &packet.data[0], packetlen);
 		file->write(sbuf, sizeof(header) + packetlen);
 	}
 }
 
 void
-opensio(char* devname) {
+opensio(const char* devname) {
 	struct termios buf;
 	int val;
 
@@ -313,6 +326,7 @@ main(int argc, char *argv[]) {
 	int ch;
 
 	serial = NULL;
+	device = -1;
 
 	while ((ch = getopt(argc, argv, "i:ps:")) != -1)
 		switch (ch) {
@@ -330,7 +344,8 @@ main(int argc, char *argv[]) {
 	if (argc != 2 || serial == NULL)
 		usage();
 
-//XXX open serial
+	opensio(serial);
+
 	if (device == -1) {
 		printf("failed to open device\n");
 		exit(1);
