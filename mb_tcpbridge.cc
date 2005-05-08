@@ -192,25 +192,6 @@ FConnect::checkcrc() {
 	    (packet.data[packetlen - 1] == (crc >> 8)));
 }
 
-/*
-void
-FConnect::sendpacket() {
-
-	// TODO: check for errors
-//XXX	usb_bulk_write(device, EP_out, (char*)&packet.data[0], packetlen + 4, 1000);
-	return;
-}
-
-void
-FConnect::getpacket() {
-	int tmp;
-
-//XXX	tmp = usb_bulk_read(device, EP_in, (char*)&packet.data[0], 256, 1000);
-	if (tmp >= 0) 
-		packetlen = (uint8_t)(tmp - 4);
-}
-*/
-
 void
 FConnect::sendpacket() {
 	uint16_t crc;
