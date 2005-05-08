@@ -49,7 +49,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <termios.h>
+#include <termios.h>
 #include <unistd.h>
 
 #ifndef MAXSOCK
@@ -61,7 +61,6 @@ void usage(void);
 
 static Mutex device_mtx;
 static int device;
-static int EP_in, EP_out;
 
 ssize_t
 writen(int fd, const void *vptr, size_t n) {
@@ -167,7 +166,7 @@ FConnect::calccrc() {
 	uint8_t len = packetlen - 2;
 
 	for (pos = 0; pos < len; pos++) {
-		crc ^= packet[pos];
+		crc ^= packet.data[pos];
 		for (i = 8; i ; i--) {
 			lsb = crc & 0x01;
 			crc = crc >> 1;
@@ -181,8 +180,8 @@ FConnect::calccrc() {
 int
 FConnect::checkcrc() {
 	uint16_t crc = calccrc();
-	return ((packet[packetlen - 2] == (crc & 0xff)) &&
-	    (packet[packetlen - 1] == (crc >> 8)));
+	return ((packet.data[packetlen - 2] == (crc & 0xff)) &&
+	    (packet.data[packetlen - 1] == (crc >> 8)));
 }
 
 /*
@@ -210,9 +209,9 @@ FConnect::sendpacket() {
 
 	packetlen += 2;
 	crc = calccrc();
-	packet[packetlen - 2] = crc & 0xff;
-	packet[packetlen - 1] = crc >> 8;
-	::writen(device, packet, packetlen);
+	packet.data[packetlen - 2] = crc & 0xff;
+	packet.data[packetlen - 1] = crc >> 8;
+	::writen(device, packet.data, packetlen);
 	tcflush(device, TCIFLUSH); // flush received data
 	return;
 }
@@ -240,14 +239,14 @@ FConnect::getpacket() {
 		FD_ZERO(&fds);
 		FD_SET(device, &fds);
 		to.tv_sec = 0;
-		to.tv_usec = 1000000/(115200/11*1.5);
+		to.tv_usec = (suseconds_t) (1000000/(115200/11*1.5));
 		res = select(device + 1, &fds, NULL, NULL, &to);
 		if (FD_ISSET(device, &fds))
-			packetlen += ::read(device, &packet[packetlen],
+			packetlen += ::read(device, &packet.data[packetlen],
 			    256 - packetlen);	// TODO check for parity error
 		else {
 			// wait t3.5 to block other possible writes
-			usleep(1000000/(115200/11*3.5));
+			usleep((useconds_t) (1000000/(115200/11*3.5)));
 			if (!checkcrc()) {
 				printf("received packet has wrong CRC\n");
 				// XXX: TODO setuop correct exception
@@ -276,7 +275,6 @@ FConnect::work() {
 			return;
 		}
 		packetlen -= 2;	// drop address and function bytes
-		// TODO add refno handling to ubmb
 		device_mtx.lock();
 		sendpacket();
 		getpacket();
