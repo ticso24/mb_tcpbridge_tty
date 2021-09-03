@@ -134,7 +134,8 @@ FConnect::Listen::newtask() {
 FConnect::Listen::newcon(int clientfd) {
 	cassert(clientfd >= 0);
 	socklen_t addrlen;
-	Matrix<char> addrdt(MAXSOCKADDR);
+	a_ptr<char> addrdt;
+	addrdt = new char[MAXSOCKADDR];
 	struct sockaddr *addr = (struct sockaddr*)addrdt.get();
 	addrlen = MAXSOCKADDR;
 	if (::getsockname(clientfd, addr, &addrlen) < 0)
@@ -351,7 +352,7 @@ main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	listen.add_tcp(argv[0], argv[1]);
+	listen.add_tcp(argv[0], argv[1], 100);
 	daemon(0,0);
 
 	listen.loop();
