@@ -31,11 +31,12 @@
 # $Rev$
 #
 
-CFLAGS = -g -Wall `libbwct-config --cflags`
+CFLAGS = -O2 -g -Wall -Wsystem-headers -Wno-format-y2k -Wno-uninitialized `libbwctmb-config --cflags`
 LDFLAGS = `libbwct-config --libs`
 
 BIN = mb_tcpbridge_tty
 OBJ = mb_tcpbridge_tty.o
+BINDIR ?= /usr/local/sbin
 
 all: $(BIN)
 
@@ -47,3 +48,7 @@ $(BIN): $(OBJ)
 
 .cc.o:
 	$(CXX) $(CFLAGS) -c $<
+
+install:
+	mkdir -p $(BINDIR)
+	install $(BIN) $(BINDIR)
