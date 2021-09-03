@@ -361,7 +361,7 @@ main(int argc, char *argv[]) {
 void
 usage(void) {
 
-	printf("usage: tcpbridge -s serial ip port\n");
+	printf("usage: mb_tcpbridge_tty -s serial ip port\n");
 	exit(1);
 }
 

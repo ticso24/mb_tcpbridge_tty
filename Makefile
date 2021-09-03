@@ -31,12 +31,11 @@
 # $Rev$
 #
 
-CXX = g++
 CFLAGS = -g -Wall `libbwct-config --cflags`
 LDFLAGS = `libbwct-config --libs`
 
-BIN = mb_tcpbridge-rs232
-OBJ = mb_tcpbridge-rs232.o
+BIN = mb_tcpbridge-tty
+OBJ = mb_tcpbridge-tty.o
 
 all: $(BIN)
 
