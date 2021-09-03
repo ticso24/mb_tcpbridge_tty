@@ -34,8 +34,8 @@
 CFLAGS = -g -Wall `libbwct-config --cflags`
 LDFLAGS = `libbwct-config --libs`
 
-BIN = mb_tcpbridge-tty
-OBJ = mb_tcpbridge-tty.o
+BIN = mb_tcpbridge_tty
+OBJ = mb_tcpbridge_tty.o
 
 all: $(BIN)
 
