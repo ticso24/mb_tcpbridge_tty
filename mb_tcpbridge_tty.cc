@@ -219,8 +219,8 @@ FConnect::getpacket() {
 	// wait for the first packet befor starting
 	FD_ZERO(&fds);
 	FD_SET(device, &fds);
-	to.tv_sec = 1;
-	to.tv_usec = 0;
+	to.tv_sec = 0;
+	to.tv_usec = 500000;
 	select(device + 1, &fds, NULL, NULL, &to);
 	if (!FD_ISSET(device, &fds)) {
 		setexception(0x0b);
@@ -326,8 +326,7 @@ opensio(const char* devname) {
 		buf.c_cflag |= PARODD;
 		break;
 	}
-	cfsetispeed(&buf, speed);
-	cfsetospeed(&buf, speed);
+	cfsetspeed(&buf, speed);
 	if (tcsetattr(device, TCSAFLUSH, &buf) < 0) {
 		printf("tcsetattr failed: %s\n", strerror(errno));
 		exit (1);
