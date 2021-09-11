@@ -63,6 +63,7 @@ static Mutex device_mtx;
 static int device;
 static uint32_t speed;
 static const char* parity;
+static int trailing_zero = 0;
 
 ssize_t
 writen(int fd, const void *vptr, size_t n) {
@@ -185,6 +186,7 @@ FConnect::calccrc() {
 				crc ^= 0xa001;
 		}
 	}
+	log(String() + "CRC " + crc);
 	return crc;
 }
 
@@ -220,8 +222,12 @@ FConnect::getpacket() {
 	FD_ZERO(&fds);
 	FD_SET(device, &fds);
 	to.tv_sec = 0;
-	to.tv_usec = 500000;
-	select(device + 1, &fds, NULL, NULL, &to);
+	to.tv_usec = 800000;
+	res = select(device + 1, &fds, NULL, NULL, &to);
+	if (res <= 0) {
+		setexception(0x0b);
+		return;
+	}
 	if (!FD_ISSET(device, &fds)) {
 		setexception(0x0b);
 		return;	// reaction timeout
@@ -233,7 +239,7 @@ FConnect::getpacket() {
 		to.tv_sec = 0;
 		//to.tv_usec = (suseconds_t) (1000000 / speed * 11 * 1.5);
 		// multitasking OS and USB serials have problems with low latency
-		to.tv_usec = 10000;
+		to.tv_usec = 800000;
 		res = select(device + 1, &fds, NULL, NULL, &to);
 		if (FD_ISSET(device, &fds)) {
 			tmp = ::read(device, &packet.data[packetlen],
@@ -247,6 +253,7 @@ FConnect::getpacket() {
 				return;
 			}
 		} else {
+			packetlen -= trailing_zero;
 			// wait t3.5 to block other possible writes
 			usleep((useconds_t) (1000000 / speed * 11 * 3.5));
 			if (!checkcrc()) {
@@ -344,7 +351,7 @@ main(int argc, char *argv[]) {
 	speed = 115200;
 	parity = "even";
 
-	while ((ch = getopt(argc, argv, "p:s:t:")) != -1)
+	while ((ch = getopt(argc, argv, "p:s:t:z")) != -1)
 		switch (ch) {
 		case 't':
 			ttypath = optarg;
@@ -354,6 +361,9 @@ main(int argc, char *argv[]) {
 			break;
 		case 'p':
 			parity = optarg;
+			break;
+		case 'z':
+			trailing_zero = 1;
 			break;
 		case '?':
 		default:
@@ -383,7 +393,7 @@ main(int argc, char *argv[]) {
 void
 usage(void) {
 
-	printf("usage: mb_tcpbridge_tty -t tty [-s speed] [-p parity] ip port\n");
+	printf("usage: mb_tcpbridge_tty -t tty [-s speed] [-p parity] [-z] ip port\n");
 	exit(1);
 }
 
