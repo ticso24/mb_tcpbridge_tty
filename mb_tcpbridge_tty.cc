@@ -61,6 +61,8 @@ void usage(void);
 
 static Mutex device_mtx;
 static int device;
+static uint32_t speed;
+static const char* parity;
 
 ssize_t
 writen(int fd, const void *vptr, size_t n) {
@@ -229,7 +231,7 @@ FConnect::getpacket() {
 		FD_ZERO(&fds);
 		FD_SET(device, &fds);
 		to.tv_sec = 0;
-		//to.tv_usec = (suseconds_t) (1000000 / 115200 * 11 * 1.5);
+		//to.tv_usec = (suseconds_t) (1000000 / speed * 11 * 1.5);
 		// multitasking OS and USB serials have problems with low latency
 		to.tv_usec = 10000;
 		res = select(device + 1, &fds, NULL, NULL, &to);
@@ -240,13 +242,13 @@ FConnect::getpacket() {
 				packetlen += tmp;
 			} else {
 				// wait t3.5 to block other possible writes
-				usleep((useconds_t) (1000000 / 115200 * 11 * 3.5));
+				usleep((useconds_t) (1000000 / speed * 11 * 3.5));
 				setexception(0x0b);
 				return;
 			}
 		} else {
 			// wait t3.5 to block other possible writes
-			usleep((useconds_t) (1000000 / 115200 * 11 * 3.5));
+			usleep((useconds_t) (1000000 / speed * 11 * 3.5));
 			if (!checkcrc()) {
 				setexception(0x0b);
 				return;
@@ -298,7 +300,7 @@ opensio(const char* devname) {
 
 	device = open(devname, O_RDWR);
 	if (device < 0) {
-		printf("open serial %s failed: %s\n",
+		printf("open tty %s failed: %s\n",
 		    devname, strerror(errno));
 		exit(1);
 	}
@@ -311,9 +313,22 @@ opensio(const char* devname) {
 	cfmakeraw(&buf);
 	buf.c_iflag |= IGNBRK;
 	buf.c_cflag &= ~(CSIZE | PARODD);
-	buf.c_cflag |= CS8 | CLOCAL | PARENB /*| CSTOPB*/;
-	cfsetispeed(&buf, 115200);
-	cfsetospeed(&buf, 115200);
+	buf.c_cflag |= CS8 | CLOCAL;
+	switch (parity[0]) {
+	case 'n':
+		buf.c_cflag &= ~PARENB;
+		break;
+	case 'e':
+		buf.c_cflag |= PARENB;
+		buf.c_cflag &= ~PARODD;
+		break;
+	case 'o':
+		buf.c_cflag |= PARENB;
+		buf.c_cflag |= PARODD;
+		break;
+	}
+	cfsetispeed(&buf, speed);
+	cfsetospeed(&buf, speed);
 	if (tcsetattr(device, TCSAFLUSH, &buf) < 0) {
 		printf("tcsetattr failed: %s\n", strerror(errno));
 		exit (1);
@@ -323,16 +338,24 @@ opensio(const char* devname) {
 int
 main(int argc, char *argv[]) {
 	FConnect::Listen listen;
-	const char* serial;
+	const char* ttypath;
 	int ch;
 
-	serial = NULL;
+	ttypath = NULL;
 	device = -1;
+	speed = 115200;
+	parity = "even";
 
-	while ((ch = getopt(argc, argv, "i:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "p:s:t:")) != -1)
 		switch (ch) {
+		case 't':
+			ttypath = optarg;
+			break;
 		case 's':
-			serial = optarg;
+			speed = atoll(optarg);
+			break;
+		case 'p':
+			parity = optarg;
 			break;
 		case '?':
 		default:
@@ -342,10 +365,10 @@ main(int argc, char *argv[]) {
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2 || serial == NULL)
+	if (argc != 2 || ttypath == NULL)
 		usage();
 
-	opensio(serial);
+	opensio(ttypath);
 
 	if (device == -1) {
 		printf("failed to open device\n");
@@ -362,7 +385,7 @@ main(int argc, char *argv[]) {
 void
 usage(void) {
 
-	printf("usage: mb_tcpbridge_tty -s serial ip port\n");
+	printf("usage: mb_tcpbridge_tty -t tty [-s speed] [-p parity] ip port\n");
 	exit(1);
 }
 
