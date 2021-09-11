@@ -219,8 +219,8 @@ FConnect::getpacket() {
 	// wait for the first packet befor starting
 	FD_ZERO(&fds);
 	FD_SET(device, &fds);
-	to.tv_sec = 0;
-	to.tv_usec = 100000; 
+	to.tv_sec = 1;
+	to.tv_usec = 0;
 	select(device + 1, &fds, NULL, NULL, &to);
 	if (!FD_ISSET(device, &fds)) {
 		setexception(0x0b);
