@@ -333,7 +333,162 @@ opensio(const char* devname) {
 		buf.c_cflag |= PARODD;
 		break;
 	}
-	cfsetspeed(&buf, speed);
+	uint32_t speedvalue = speed;
+#ifdef __linux__
+	switch (speed) {
+#ifdef B50
+	case 50:
+		speedvalue = B50;
+		break;
+#endif
+#ifdef B75
+	case 75:
+		speedvalue = B75;
+		break;
+#endif
+#ifdef B110
+	case 110:
+		speedvalue = B110;
+		break;
+#endif
+#ifdef B134
+	case 134:
+		speedvalue = B134;
+		break;
+#endif
+#ifdef B150
+	case 150:
+		speedvalue = B150;
+		break;
+#endif
+#ifdef B200
+	case 200:
+		speedvalue = B200;
+		break;
+#endif
+#ifdef B300
+	case 300:
+		speedvalue = B300;
+		break;
+#endif
+#ifdef B600
+	case 600:
+		speedvalue = B600;
+		break;
+#endif
+#ifdef B1200
+	case 1200:
+		speedvalue = B1200;
+		break;
+#endif
+#ifdef B1800
+	case 1800:
+		speedvalue = B1800;
+		break;
+#endif
+#ifdef B2400
+	case 2400:
+		speedvalue = B2400;
+		break;
+#endif
+#ifdef B4800
+	case 4800:
+		speedvalue = B4800;
+		break;
+#endif
+#ifdef B9600
+	case 9600:
+		speedvalue = B9600;
+		break;
+#endif
+#ifdef B19200
+	case 19200:
+		speedvalue = B19200;
+		break;
+#endif
+#ifdef B38400
+	case 38400:
+		speedvalue = B38400;
+		break;
+#endif
+#ifdef B57600
+	case 57600:
+		speedvalue = B57600;
+		break;
+#endif
+#ifdef B115200
+	case 115200:
+		speedvalue = B115200;
+		break;
+#endif
+#ifdef B230400
+	case 230400:
+		speedvalue = B230400;
+		break;
+#endif
+#ifdef B460800
+	case 460800:
+		speedvalue = B460800;
+		break;
+#endif
+#ifdef B500000
+	case 500000:
+		speedvalue = B500000;
+		break;
+#endif
+#ifdef B576000
+	case 576000:
+		speedvalue = B576000;
+		break;
+#endif
+#ifdef B921600
+	case 921600:
+		speedvalue = B921600;
+		break;
+#endif
+#ifdef B1000000
+	case 1000000:
+		speedvalue = B1000000;
+		break;
+#endif
+#ifdef B1152000
+	case 1152000:
+		speedvalue = B50;
+		break;
+#endif
+#ifdef B1500000
+	case 1500000:
+		speedvalue = B1500000;
+		break;
+#endif
+#ifdef B2000000
+	case 2000000:
+		speedvalue = B2000000;
+		break;
+#endif
+#ifdef B2500000
+	case 2500000:
+		speedvalue = B2500000;
+		break;
+#endif
+#ifdef B3000000
+	case 3000000:
+		speedvalue = B3000000;
+		break;
+#endif
+#ifdef B3500000
+	case 3500000:
+		speedvalue = B3500000;
+		break;
+#endif
+#ifdef B4000000
+	case 4000000:
+		speedvalue = B4000000;
+		break;
+#endif
+	}
+#endif
+	cfsetspeed(&buf, speedvalue);
 	if (tcsetattr(device, TCSAFLUSH, &buf) < 0) {
 		printf("tcsetattr failed: %s\n", strerror(errno));
 		exit (1);
